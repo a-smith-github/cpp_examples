@@ -191,8 +191,42 @@ int main()
   return 0;
 }
 ```
+I personally think the eigenvalue step is not very clear and, in a few months, I won't really understand what is going on without having to refer to the paper. I don't really have a grasp of the intercept condition just from the looking at the code because it is obscured by the eigensolve step which requires specific domain knowledge. We should improve the comments in this scenario to look something like this:
 
 ## Doc strings
+
+#### "Could you add more verbose comments in the intercept method about the values of the eigenvalues when ellipsoids do and do not intercept? Could you also reflect this in the docstring? Only show the intercept method and docstring"
+#### ChatGPT:
+
+```c++
+/**
+ * Determines if the two given ellipsoid matrices intercept.
+ *
+ * @param A The first ellipsoid matrix.
+ * @param B The second ellipsoid matrix.
+ *
+ * @return True if the two ellipsoids intercept, false otherwise.
+ *
+ * The ellipsoids intercept if the matrix C = A - B has at least one
+ * negative eigenvalue. This is because the ellipsoid equation is given by
+ * x^TAx = 1 for some matrix A, and if C has at least one negative
+ * eigenvalue, then there exists a vector x such that x^TAx = 1 and
+ * x^TCx < 0, meaning that x is a point that lies inside both ellipsoids
+ * A and B.
+ */
+bool intersect(const Matrix3d& A, const Matrix3d& B)
+{
+  Matrix3d C = A - B;
+  SelfAdjointEigenSolver<Matrix3d> eigensolver(C);
+  if (eigensolver.info() == Success) {
+    Vector3d ev = eigensolver.eigenvalues();
+    return (ev.minCoeff() < 0);
+  } else {
+    cerr << "Error: eigenvalue decomposition failed!" << endl;
+    exit(-1);
+  }
+}
+```
 
 In addition we need to consider doc strings as a separate subclass of comment which provide in-code explanation of input/output variables and purpose of each method, class, etc.. So not only are we creating automatic documentation but we are also making it easier for the uninitiated to follow what the code is doing. Combined with a clear variable name describing the limited scope of the method, it should be unnecessary to inspect the blocks of code which form the method to determine what the method is doing to it’s inputs and what any output represents. If the method should throw an error, this should also be included in the doc string (e.g. @throws Error::Ellipsoid::InvalidCoordinate) and an explaination included in the description.
 
@@ -250,6 +284,8 @@ bool intersect(const Matrix3d& A, const Matrix3d& B)
 ...
 }
 ```
+Compare the doc string for the intercept method above to the doc string at the top of the section. I don't believe there are many cases where a doc string that describes the inputs and outputs alone is sufficient --- even a method as simple as 'add' could benefit and would improve documentation. 
+
 
 ## Tests
 
