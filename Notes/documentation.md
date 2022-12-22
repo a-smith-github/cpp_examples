@@ -345,7 +345,7 @@ TEST_CASE("Intersection of ellipsoids")
   }
 }
 ```
-I think the above would be a bare minimum example for a unit test. For an integration test you may also be testing the classes which hold the ellipsoids, their data access methods, as well as other aspects of your system such as periodic boundary conditions or test a specific ellipsoid (e.g. a minimum volume enclosing ellipsoid around a molecule) or some other system-dependent property, as well as any methods which you directly target. You may wish to expand on the test specification. You may also wish to modify the language to say passes/fails rather than true/false and speak of parameters rather than inputs. You may also wish to include cases where intercepts should not occur and test accordingly. Although, in some cases, it is possible to determine when a test was added, it is good practice to include the year or version the test was made for --- this helps remove technical debt or obsolete features in the future.
+I think the above would be a bare minimum example for a unit test. For an integration test you may also be testing the classes which hold the ellipsoids, their data access methods, as well as other aspects of your system such as periodic boundary conditions or test a specific ellipsoid (e.g. a minimum volume enclosing ellipsoid around a molecule) or some other system-dependent property, as well as any methods which you directly target (this list should be concise, small changes help here). You may wish to expand on the test specification. You may also wish to modify the language to say passes/fails rather than true/false and speak of parameters rather than inputs. You may also wish to include cases where intercepts should not occur and test accordingly. Although, in some cases, it is possible to determine when a test was added is the repository was properly managed, it is good practice to include the year or version that the test was made for in case this is information is lost --- this helps when removing technical debt or obsolete features in the future.
 
 In the event of failure of a Catch2 test it would be useful to use a dynamic section so that `i` and `j` become test parameters and are included in the output.
 
@@ -356,13 +356,16 @@ In the event of failure of a Catch2 test it would be useful to use a dynamic sec
 //   i: scaling factor of the first ellipsoid
 //   j: scaling factor of the second ellipsoid
 //
-// result: 
+// Result: 
 //   PASSES if the two ellipsoids intersect, FAILS otherwise
+//
 // Test targets:
 //   Class Ellipsoid
+//
 // Test dependencies:
 //   C60.mol
 //   C1H4.mol
+//
 // Release:
 //   v1.2
 
@@ -378,7 +381,65 @@ TEST_CASE("Intersection of ellipsoids")
 
 ```
 
-When a bug is identified it can either be fixed straight away or the test can get filtered (turned off so as to not break CI) and a follow-up task/issue created (note: in a small organisation where code is merged infrequently and CI tests are run on a per change basis, it would be more likely you would fix the bug rather than track an issue). Additionally, if you leave a TODO/FIXME in the code where the change is too large or outside the scope of the current work, you should also create a follow-up task/issue. In both cases the issue number should be included in the comment so that a quick search can be performed to help identify the requirements for that feature/issue and to make sure the issue has been fully addressed before making a submission/pull request. In some CI systems, a submission will be blocked or require a new follow-up task to be linked to the failure and other automatic checks will fail if the linked issue is present anywhere in the code base. 
+(Note: this might not be the correct way of formatting this information for an automatic documentation generation tool to ignore or process, this is just an example of what information is useful)
+
+When a bug is identified it can either be fixed straight away or the test can get filtered (turned off so as to not break CI) and a follow-up task/issue created (note: in a small organisation where code is merged infrequently and CI tests are run on a per change basis, it would be more likely you would fix the bug rather than track an issue). Additionally, if you leave a TODO/FIXME in the code where the change is too large or outside the scope of the current work, you should also create a follow-up task/issue. In both cases the issue number should be included in the comment so that a quick search can be performed to help identify the requirements for that feature/issue and to make sure the issue has been fully addressed before making a submission/pull request. In some CI systems, a submission will be blocked or require a new follow-up task to be linked to the failure and other automatic checks will fail if the linked issue is present anywhere in the code base.
 
 
+For a method 
 
+```c++
+void applyPeriodicBoundaryConditions(double& x, double& y, double& z, double boxSize)
+```
+
+you might write a unit test to validate functionality. Such a test could consist of multiple cases (for each dimension, test if a point initially placed outside (negative), inside, and outside (postive) is repositioned to inside the box). I have slightly modified the generated answer here for test case 3.
+
+```c++
+#include "catch.hpp"
+
+// Include the header file for the applyPeriodicBoundaryConditions function
+#include "applyPeriodicBoundaryConditions.h"
+
+TEST_CASE("Periodic boundary conditions are applied correctly", "[periodic-boundary-conditions]") {
+  double x, y, z;
+  double boxSize;
+
+  // Test case 1: x coordinate is outside the box in the positive direction
+  x = 2.0;
+  y = 1.0;
+  z = 0.5;
+  boxSize = 1.0;
+  applyPeriodicBoundaryConditions(x, y, z, boxSize);
+  REQUIRE(x == Approx(0.0));  // x should be wrapped around to the other side of the box
+  REQUIRE(y == Approx(1.0));  // y should not change
+  REQUIRE(z == Approx(0.5));  // z should not change
+
+  // Test case 2: y coordinate is outside the box in the negative direction
+  x = 0.5;
+  y = -0.5;
+  z = 1.0;
+  boxSize = 1.0;
+  applyPeriodicBoundaryConditions(x, y, z, boxSize);
+  REQUIRE(x == Approx(0.5));  // x should not change
+  REQUIRE(y == Approx(0.5));  // y should be wrapped around to the other side of the box
+  REQUIRE(z == Approx(1.0));  // z should not change
+
+  // Test case 3: test applyPeriodicBoundaryConditions for a z coordinate which is outside 
+  // the box in the positive direction
+  x = 0.25;
+  y = 0.75;
+  z = 1.25;
+  boxSize = 1.0;
+  applyPeriodicBoundaryConditions(x, y, z, boxSize);
+  // x and y should remain unchanged
+  REQUIRE(x == Approx(0.25));
+  REQUIRE(y == Approx(0.75));
+  // z should be wrapped around to the other side of the box
+  REQUIRE(z == Approx(0.25));
+}
+```
+Of course these tests could be split into their own TEST_CASEs but comments to aid specifying the success (and failure) conditions create a full specification for the method. In this case the include (and accompanying comment) makes clear which file is targeted. In the event that there are multiple includes required, separating out the targets or providing a written list in a separate comment aids any requirements analysis you might perform before making a change. In the absence of other documentation (such as a feature specification) this information (the interface and the test conditions) should be enough to describe the intent, requirements and any bugs/pain points that had to be resolved such that a new implementation could be written without re-introducing a regression. 
+
+Although this is a contrived and inexhaustive example, in this case we know we have an ellipsoid intercept method which tests if there is overlap with another ellipsoid (an intercept) by comparing the ellipsoid matrices (axes) after relocating them in space and, following a bug, after applying periodic boundary conditions which behave as in the above test. If we looked at any auto-generated documentation we would know more about the implementation methodology and the meaning of the full range of return values from the intercept method. In principle we could write that comment in a header file (or even an abridged version of it), write the implementation in a source file and it would be unnecessary to see the source file to know how the method functioned.
+
+You can never fully replace documentation but you can get close enough that, in a pinch, you can make a change without looking. This is also exactly how you enforce that other features that interact with your feature respect the intended behaviour of your feature. This is a defensive mechanism so support is not unintentionally eroded. If a test fails when they make a change, then it wasn't (necessarily) your fault and instead perhaps the new feature misunderstood the requirements and architectural change that you made. When that test fails, you should give them enough information so they know what rule they broke and what behaviour they need to restore so that your feature remains supported.
